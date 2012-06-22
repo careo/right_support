@@ -125,7 +125,6 @@ module RightSupport::DB
     class << self
 
       @@logger = nil
-      @@conn = nil
       
       attr_accessor :column_family
       attr_writer :keyspace
@@ -157,7 +156,7 @@ module RightSupport::DB
       # === Return
       # (Cassandra):: Client connected to server
       def conn
-        return @@conn if @@conn
+        return Thread.current[:cassandra_model_connection] if Thread.current[:cassandra_model_connection]
 
         # TODO remove hidden dependency on ENV['RACK_ENV'] (maybe require config= to accept a sub hash?)
         config = @@config[ENV["RACK_ENV"]]
@@ -167,9 +166,9 @@ module RightSupport::DB
         thrift_client_options.merge!({:protocol => Thrift::BinaryProtocolAccelerated})\
           if defined? Thrift::BinaryProtocolAccelerated
 
-        @@conn = Cassandra.new(keyspace, config["server"], thrift_client_options)
-        @@conn.disable_node_auto_discovery!
-        @@conn
+        conn = Cassandra.new(keyspace, config["server"], thrift_client_options)
+        conn.disable_node_auto_discovery!
+        Thread.current[:cassandra_model_connection] = conn
       end
 
       # Get row(s) for specified key(s)
@@ -386,8 +385,9 @@ module RightSupport::DB
         thrift_client_options.merge!({:protocol => Thrift::BinaryProtocolAccelerated})\
           if defined? Thrift::BinaryProtocolAccelerated
 
-        @@conn = Cassandra.new(keyspace, config["server"], thrift_client_options)
-        @@conn.disable_node_auto_discovery!
+        conn = Cassandra.new(keyspace, config["server"], thrift_client_options)
+        conn.disable_node_auto_discovery!
+        Thread.current[:cassandra_model_connection] = conn
         true
       end
 
